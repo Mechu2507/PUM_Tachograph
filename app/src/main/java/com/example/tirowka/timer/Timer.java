@@ -2,6 +2,7 @@ package com.example.tirowka.timer;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
@@ -12,11 +13,14 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -34,12 +38,12 @@ import com.example.tirowka.R;
 
 import java.util.Locale;
 
-public class Timer extends AppCompatActivity {
+public class Timer extends AppCompatActivity implements LocationListener{
 
     private EditText et_input;
     private TextView tv_countdown;
-    private Button btn_start_pause, btn_reset, btn_set, btn_start, btn_pause, btn_stop;
-    static TextView tv_distance, tv_time;
+    private Button btn_start_pause, btn_reset, btn_set;
+    static TextView tv_distance, tv_time, tv_speed;
 
     private CountDownTimer countDownTimer;
 
@@ -54,8 +58,7 @@ public class Timer extends AppCompatActivity {
     static ProgressDialog progressDialog;
     static int p = 0;
 
-    LocationService myService;
-    LocationManager locationManager;
+    Location location;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,11 +70,7 @@ public class Timer extends AppCompatActivity {
         btn_start_pause = findViewById(R.id.btn_start_pause);
         btn_reset = findViewById(R.id.btn_reset);
         btn_set = findViewById(R.id.btn_set);
-        tv_distance = findViewById(R.id.tv_distance);
-        tv_time = findViewById(R.id.tv_time);
-        btn_start = findViewById(R.id.btn_start);
-        btn_pause = findViewById(R.id.btn_pause);
-        btn_stop = findViewById(R.id.btn_stop);
+        tv_speed = findViewById(R.id.tv_speed);
 
         btn_set.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -111,68 +110,15 @@ public class Timer extends AppCompatActivity {
             }
         });
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted
+            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1000);
+        } else {
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED ){
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                requestPermissions(new String[]{
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                }, 1000);
-            }
+            //start the program if permission is granted
+            doStuff();
         }
 
-        btn_start.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                checkGPS();
-                locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-                if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER))
-                    return;
-                if (status == false)
-                    bindService();
-                progressDialog = new ProgressDialog(Timer.this);
-                progressDialog.setIndeterminate(true);
-                progressDialog.setCancelable(false);
-                progressDialog.setMessage("GettingLocation...");
-                progressDialog.show();
-
-                btn_start.setVisibility(View.GONE);
-                btn_pause.setVisibility(View.VISIBLE);
-                btn_stop.setVisibility(View.VISIBLE);
-            }
-        });
-
-        btn_pause.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (btn_pause.getText().toString().equalsIgnoreCase("pause")){
-                    btn_pause.setText("Resume");
-                    p = 1;
-                } else if (btn_pause.getText().toString().equalsIgnoreCase("resume")){
-                    checkGPS();
-                    locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-                    if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER))
-                        return;
-                    btn_pause.setText("Pause");
-                    p = 0;
-                }
-            }
-        });
-
-        btn_stop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (status == true)
-                    unbindService();
-                btn_start.setVisibility(View.VISIBLE);
-                btn_pause.setText("Pause");
-                btn_pause.setVisibility(View.GONE);
-                btn_stop.setVisibility(View.GONE);
-            }
-        });
     }
 
     private void setTime(long milliseconds){
@@ -338,90 +284,64 @@ public class Timer extends AppCompatActivity {
 //    _______________________________________
 //    Speedometer
 //
-    private ServiceConnection sc = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-            LocationService.LocalBinder binder = (LocationService.LocalBinder)iBinder;
-            myService = binder.getService();
-            status = true;
-        }
 
-        @Override
-        public void onServiceDisconnected(ComponentName componentName) {
-            status = false;
-        }
-    };
+    private void doStuff() {
+        LocationManager lm = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
 
-    @Override
-    protected void onDestroy() {
-        if (status == true)
-            unbindService();
-        super.onDestroy();
+        if (lm != null){
+            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, (float) 0, (LocationListener) this);
+            //commented, this is from the old version
+            // this.onLocationChanged(null);
+        }
+        Toast.makeText(this,"Waiting for GPS connection!", Toast.LENGTH_SHORT).show();
+
     }
 
     @Override
-    public void onBackPressed() {
-        if (status == false)
-            super.onBackPressed();
-        else
-            moveTaskToBack(true);
+    public void onLocationChanged(Location location) {
+
+        TextView txt = (TextView) this.findViewById(R.id.tv_speed);
+
+        if (location==null){
+
+            txt.setText("-.- km/h");
+        } else {
+            float nCurrentSpeed = location.getSpeed() * 3.6f;
+            txt.setText(String.format("%.2f", nCurrentSpeed)+ " km/h" );
+        }
+
     }
 
-    private void unbindService() {
-        if(status == false)
-            return;
-        Intent i = new Intent(getApplicationContext(), LocationService.class);
-        unbindService(sc);
-        status = false;
-    }
-
+    /*
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case 1000: {
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
-                    Toast.makeText(this, "GRANTED", Toast.LENGTH_SHORT).show();
-                else
-                    Toast.makeText(this, "DENIED", Toast.LENGTH_SHORT).show();
+        if (requestCode == 1000) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                doStuff();
+            } else {
+
+                finish();
             }
-            return;
+
         }
+
     }
 
-    private void checkGPS() {
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER))
-            showGPSDisabledAlert();
+     */
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
     }
 
-    private void showGPSDisabledAlert() {
-        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
-        alertDialogBuilder.setMessage("Enable GPS to use application")
-                .setCancelable(false)
-                .setPositiveButton("Enable GPS", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                        startActivity(intent);
-                    }
-                });
-        alertDialogBuilder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                dialogInterface.cancel();
-            }
-        });
-        AlertDialog alert = alertDialogBuilder.create();
-        alert.show();
+    @Override
+    public void onProviderEnabled(String provider) {
+
     }
 
-    private void bindService() {
-        if (status == true)
-            return;
-        Intent i = new Intent(getApplicationContext(), LocationService.class);
-        bindService(i, sc, BIND_AUTO_CREATE);
-        status = true;
-        startTime = System.currentTimeMillis();
+    @Override
+    public void onProviderDisabled(String provider) {
+
     }
+
 }
