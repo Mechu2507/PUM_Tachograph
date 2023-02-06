@@ -136,7 +136,7 @@ public class GPSTracking extends AppCompatActivity {
         tv_updates.setText("Location is NOT being tracked");
         tv_lat.setText("Not tracking location");
         tv_lon.setText("Not tracking location");
-        tv_speed.setText("Not tracking location");
+        //tv_speed.setText("Not tracking location");
         tv_address.setText("Not tracking location");
         tv_accurancy.setText("Not tracking location");
         tv_altitude.setText("Not tracking location");

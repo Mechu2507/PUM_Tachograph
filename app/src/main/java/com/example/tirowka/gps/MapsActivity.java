@@ -1,20 +1,32 @@
 package com.example.tirowka.gps;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.Criteria;
 import android.location.Location;
+import android.location.LocationManager;
+
 import android.os.Bundle;
 import android.view.Menu;
 
 import com.example.tirowka.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.List;
@@ -35,6 +47,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private FusedLocationProviderClient fusedLocationProviderClient;
 
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationRequest locationRequest;
+    private LocationCallback locationCallback;
+    private Marker currentLocationMarker;
+    private LatLng currentLocation;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -47,6 +65,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         MyApp myApp = (MyApp) getApplicationContext();
         savedLocations = myApp.getMyLocations();
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        locationRequest = LocationRequest.create();
+        locationRequest.setInterval(5000);
+        locationRequest.setFastestInterval(3000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) {
+                    return;
+                }
+                for (Location location : locationResult.getLocations()) {
+                    if (location != null) {
+                        currentLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                        if (currentLocationMarker == null) {
+                            currentLocationMarker = mMap.addMarker(new MarkerOptions().position(currentLocation).title("Aktualna lokalizacja"));
+                        } else {
+                            currentLocationMarker.setPosition(currentLocation);
+                        }
+                        //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15));
+                    }
+                }
+            }
+        };
     }
 
     /**
@@ -83,7 +126,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.addMarker(new MarkerOptions()
                     .position(latLng)
                     .title("Lat:" + location.getLatitude() + " Lon:" + location.getLongitude()));
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+
         }
         //LatLng sydney = new LatLng(-34, 151);
         //mMap.addMarker(new MarkerOptions()
@@ -91,6 +135,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //        .title("Marker in Sydney"));
         //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+        }
 
     }
 

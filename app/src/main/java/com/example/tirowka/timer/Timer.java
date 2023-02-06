@@ -312,9 +312,10 @@ public class Timer extends AppCompatActivity implements LocationListener{
 
     }
 
-    /*
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == 1000) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 doStuff();
@@ -327,7 +328,7 @@ public class Timer extends AppCompatActivity implements LocationListener{
 
     }
 
-     */
+
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
